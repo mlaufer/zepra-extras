@@ -16,6 +16,13 @@
 var interval;
 var refreshInterval;
 
+var PAUSE_DAY_HOURS_SIX = 0;
+var PAUSE_DAY_HOURS_EIGHT = 0.5;
+var PAUSE_DAY_HOURS_MAX = 0.75;
+var BASE_DATE = moment.utc("1970-01-01");
+var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE.clone().hours(8).minutes(45);
+var NINE_HOURS_DATE = BASE_DATE.clone().hours(9);
+
 $(function () {
     $("#timeclocktable").data("kendoGrid").bind("dataBound", function () {
         if (refreshInterval) {
@@ -34,6 +41,13 @@ $(function () {
             interval = null;
         }
         interval = setInterval(actionFunc, 10000); //alle 10 sek
+
+        var footer = $("#timeclocktable .k-footer-template");
+        var tdCol1 = footer.find("td:first");
+        var tdCol2 = footer.find("td:eq(1)");
+        var tdCol3 = footer.find("td:last");
+        var graphHeadSum = $('#GraphArea .g-title-day');
+
         actionFunc();
 
         function actionFunc() {
@@ -44,25 +58,25 @@ $(function () {
             if ($("#GraphArea").width() < 400) {
                 $("#content").data("kendoSplitter").size("#GraphArea", "400px");
             }
-            var curSum = parseFloat($("#timeclocktable .k-footer-template").find("td").last().text().split(" ")[1]);
+            var sumText = tdCol3.text();
+            var curSum = parseFloat(sumText.split(" ")[1]);
+            var curSumDuration = moment.duration(curSum);
 
             if ($("#timeclocktable .k-grid-content tr:last td:last-child").text() === "null") {
-                var lastIncTime = new Date("01.01.2016 " + $("#timeclocktable .k-grid-content tr:last td:first").text());
-                var curTime = new Date();
-                curTime.setDate(1);
-                curTime.setMonth(0);
-                curTime.setYear(2016);
-                var diffSeconds = (curTime.getTime() - lastIncTime.getTime()) / 1000;
+                var lastEntryStart = moment("1970-01-01 " + $("#timeclocktable .k-grid-content tr:last td:first").text());
+                var now = moment().year(1970).month(0).date(1);
+                var dur = moment.duration(now.diff(lastEntryStart));
+                curSumDuration.add(dur);
+
+                // old
+                var diffSeconds = dur.asSeconds();
                 curSum = curSum + (diffSeconds / 60 / 60);
             }
+            var curSumDate = BASE_DATE.clone().add(curSumDuration);
+
 
             var remainingSum = 8 - curSum;
-
-            var isPositive = false;
-            if (remainingSum < 0) {
-                isPositive = true;
-            }
-
+            var isPositive = remainingSum < 0;
             remainingSum = Math.abs(remainingSum);
 
             //calc pause
@@ -79,13 +93,19 @@ $(function () {
                     curPauseMs += new Date("01.01.2016 " + out).getTime() - new Date("01.01.2016 " + inc).getTime();
                 }
             });
-            var PAUSE_DAY_HOURS = 0.5;
-            if (curSum >= 9) {
-                PAUSE_DAY_HOURS = 0.75;
+
+            var current = BASE_DATE.clone().seconds(curSum * 60 * 60);
+
+            var requiredPauseHours = PAUSE_DAY_HOURS_SIX;
+            if (curSum > 6 && curSum <= 8)
+                requiredPauseHours = PAUSE_DAY_HOURS_EIGHT;
+            else if (curSum > 8) {
+                requiredPauseHours = PAUSE_DAY_HOURS_MAX
             }
+
             var pauseHours = curPauseMs / 1000 / 60 / 60;
 
-            var remainingPauseHours = PAUSE_DAY_HOURS - pauseHours;
+            var remainingPauseHours = requiredPauseHours - pauseHours;
             var maxPauseReached = false;
             var remPauseStr;
 
@@ -94,26 +114,24 @@ $(function () {
                 remainingPauseHours = Math.abs(remainingPauseHours);
                 var remPauseHours = Math.floor(pauseHours);
                 var remPauseMinutes = Math.ceil((pauseHours - remPauseHours) * 60);
-                if (remPauseMinutes === 60) {
-                    remPauseMinutes = 0;
-                    remPauseHours++;
-                }
                 remPauseStr = "Pause Insg.: ";
             } else {
                 var remPauseHours = Math.floor(remainingPauseHours);
                 var remPauseMinutes = Math.ceil((remainingPauseHours - remPauseHours) * 60);
                 remPauseStr = "Pause Verb.: ";
             }
+
             if (remPauseMinutes === 60) {
                 remPauseMinutes = 0;
                 remPauseHours++;
             }
+
             remPauseMinutes = "" + remPauseMinutes;
             remPauseMinutes = remPauseMinutes.length === 1 ? "0" + remPauseMinutes : remPauseMinutes;
 
             remPauseStr += remPauseHours + "h" + remPauseMinutes + "m";
 
-            $("#timeclocktable .k-footer-template").find("td:eq(1)").text(remPauseStr);
+            tdCol2.text(remPauseStr);
 
             //remaining time
             if (!maxPauseReached) {
@@ -135,12 +153,7 @@ $(function () {
 
             var remainingStr = (isPositive ? "Über.: " : "Verbl.: ") + remainingHours + "h" + remainingMinutes + "m";
 
-            // alert wenn 15 min vor 9h und noch keine 45 min pause gemacht
-            if (isPositive && remainingHours === 0 && remainingMinutes === 45 && !maxPauseReached) {
-                alert("Alter in 15 Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!");
-            }
-
-            $("#timeclocktable .k-footer-template").find("td:first").text(remainingStr);
+            tdCol1.text(remainingStr);
 
             if (!isPositive) {
                 var stayTill = new Date();
@@ -157,6 +170,17 @@ $(function () {
                 if ($(".k-grid-footer:last-child > .staytill").length != 0) {
                     $(".k-grid-footer:last-child > .staytill").remove();
                 }
+            }
+
+            // Set current sum in header
+            if (current.isAfter(BASE_DATE)) {
+                graphHeadSum.text("Anwesenheit - Summe: " + current.format("HH:mm") + "h");
+            }
+
+            // go home alert
+            if (current.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && current.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
+                var leftMins = NINE_HOURS_PAUSE_ALERT_DATE.diff(current, 'minutes');
+                alert("Alter in " + leftMins + " Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!");
             }
         }
     });
