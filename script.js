@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Zeiten
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4b
 // @description  IMPROVE ZEPRA!
 // @author       dzr
+// @editor       jsk, mlr
 // @match        http://general:1337/listview/Entry
 // @match        http://zeiterfassung/listview/Entry
 // @grant        none
