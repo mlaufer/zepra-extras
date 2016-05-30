@@ -23,8 +23,25 @@ var PAUSE_DAY_HOURS_MAX = 0.75;
 var BASE_DATE = moment.utc("1970-01-01");
 var BASE_DATE_SIX = BASE_DATE.clone().hours(6)
 var BASE_DATE_EIGHT = BASE_DATE.clone().hours(8);
-var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE_EIGHT.clone().minutes(45);
+var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE_EIGHT.clone().minutes(55);
 var NINE_HOURS_DATE = BASE_DATE.clone().hours(9);
+
+var NOTIFICATION_ALLOWED = false;
+var $notification;
+if (("Notification" in window)) {
+    NOTIFICATION_ALLOWED = Notification.permission === "granted";
+
+    if (Notification.permission === "default") {
+        Notification.requestPermission().then(function(result) {
+            if (result === 'granted') {
+                NOTIFICATION_ALLOWED = true;
+                return;
+            }
+        });
+    }
+
+}
+
 
 $(function () {
     $("#timeclocktable").data("kendoGrid").bind("dataBound", function () {
@@ -76,8 +93,8 @@ $(function () {
                 var diffSeconds = dur.asSeconds();
                 curSum = curSum + (diffSeconds / 60 / 60);
             }
+
             var current = BASE_DATE.clone().add(curSumDuration);
-            var remaining = BASE_DATE_EIGHT.clone().subtract(curSumDuration);
 
             var remainingSum = 8 - curSum;
             remainingSum = Math.abs(remainingSum);
@@ -130,21 +147,25 @@ $(function () {
                 current = current.subtract(remainingPauseMoment);
             }
 
-            var remainingStr = (isPositive ? "Über.: " : "Verbl.: ") + remaining.format("HH:mm") + "h";
+            var remaining = BASE_DATE_EIGHT.clone().subtract(current);
+            if (isPositive) {
+                var remainingStr = "Über.: " + (current.clone().subtract(moment.duration({hour: 8}))).format("HH:mm") + "h";
+            } else {
+                var remainingStr = "Verbl.: " + remaining.format("HH:mm") + "h";
+            }
 
             tdCol1.text(remainingStr);
 
+
             if (!isPositive) {
-                var stayTill = new Date();
-                stayTill = new Date(stayTill.getTime() + remaining.valueOf());
+                var nowTime = moment().year(1970).month(0).date(1);
+                nowTime = nowTime.add(remaining);
 
                 if ($(".k-grid-footer:last-child > .staytill").length == 0) {
                     $(".k-grid-footer:last-child").prepend("<div class='staytill'></div>");
                 }
 
-                var stayTillMinutes = stayTill.getMinutes();
-                stayTillMinutes = stayTillMinutes.length === 1 ? "0" + stayTillMinutes : stayTillMinutes;
-                $(".k-grid-footer:last-child > .staytill").html("<b>Bleiben bis mindestens: " + stayTill.getHours() + ":" + stayTillMinutes + "</b>");
+                $(".k-grid-footer:last-child > .staytill").html("<b>Bleiben bis mindestens: " + nowTime.format("HH:mm") + "</b>");
             } else {
                 if ($(".k-grid-footer:last-child > .staytill").length != 0) {
                     $(".k-grid-footer:last-child > .staytill").remove();
@@ -153,13 +174,23 @@ $(function () {
 
             // Set current sum in header
             if (current.isAfter(BASE_DATE)) {
-                graphHeadSum.text("Anwesenheit - Summe: " + current.format("HH:mm") + "h");
+                var txt = "Anwesenheit - Summe: " + current.format("HH:mm") + "h (" + BASE_DATE.clone().add(curPauseMoment).format("HH:mm") + "h)";
+
+                graphHeadSum.text(txt);
             }
 
             // go home alert
             if (current.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && current.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
                 var leftMins = NINE_HOURS_PAUSE_ALERT_DATE.diff(current, 'minutes');
-                alert("Alter in " + leftMins + " Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!");
+                var text = "Alter in " + leftMins + " Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!";
+                if (!NOTIFICATION_ALLOWED)
+                    alert(text);
+                else {
+                    if ($notification) {
+                        $notification.close();
+                    }
+                    $notification = new Notification(text);
+                }
             }
         }
     });
