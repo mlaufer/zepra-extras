@@ -21,7 +21,9 @@ var PAUSE_DAY_HOURS_SIX = 0;
 var PAUSE_DAY_HOURS_EIGHT = 0.5;
 var PAUSE_DAY_HOURS_MAX = 0.75;
 var BASE_DATE = moment.utc("1970-01-01");
-var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE.clone().hours(8).minutes(45);
+var BASE_DATE_SIX = BASE_DATE.clone().hours(6)
+var BASE_DATE_EIGHT = BASE_DATE.clone().hours(8);
+var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE_EIGHT.clone().minutes(45);
 var NINE_HOURS_DATE = BASE_DATE.clone().hours(9);
 
 $(function () {
@@ -61,27 +63,28 @@ $(function () {
             }
             var sumText = tdCol3.text();
             var curSum = parseFloat(sumText.split(" ")[1]);
-            var curSumDuration = moment.duration(curSum);
+            var curSumDuration = moment.duration({hour: curSum});
+            var now = moment();
 
             if ($("#timeclocktable .k-grid-content tr:last td:last-child").text() === "null") {
                 var lastEntryStart = moment("1970-01-01 " + $("#timeclocktable .k-grid-content tr:last td:first").text());
-                var now = moment().year(1970).month(0).date(1);
-                var dur = moment.duration(now.diff(lastEntryStart));
-                curSumDuration.add(dur);
+                var nowTime = moment().year(1970).month(0).date(1);
+                var dur = moment.duration(nowTime.diff(lastEntryStart));
+                curSumDuration = curSumDuration.add(dur);
 
                 // old
                 var diffSeconds = dur.asSeconds();
                 curSum = curSum + (diffSeconds / 60 / 60);
             }
-            var curSumDate = BASE_DATE.clone().add(curSumDuration);
-
+            var current = BASE_DATE.clone().add(curSumDuration);
+            var remaining = BASE_DATE_EIGHT.clone().subtract(curSumDuration);
 
             var remainingSum = 8 - curSum;
-            var isPositive = remainingSum < 0;
             remainingSum = Math.abs(remainingSum);
+            var isPositive = current.isAfter(BASE_DATE_EIGHT);
 
             //calc pause
-            var curPauseMs = 0;
+            var curPauseMoment = moment.duration(0);
             $("#timeclocktable .k-grid-content tr").each(function () {
                 var inc = $(this).find("td:eq(1)").text();
                 var nextTr = $(this).next("tr");
@@ -89,76 +92,51 @@ $(function () {
                 if (nextTr.length <= 0)
                     return false;
 
-                var out = $(this).next("tr").find("td:first").text();
+                var out = nextTr.find("td:first").text();
                 if (inc !== "null" && out !== "null") {
-                    curPauseMs += new Date("01.01.2016 " + out).getTime() - new Date("01.01.2016 " + inc).getTime();
+                    var pauseDiff = moment.duration(out).subtract(moment.duration(inc));
+                    curPauseMoment.add(pauseDiff);
                 }
             });
 
-            var current = BASE_DATE.clone().seconds(curSum * 60 * 60);
-
-            var requiredPauseHours = PAUSE_DAY_HOURS_SIX;
-            if (curSum > 6 && curSum <= 8)
-                requiredPauseHours = PAUSE_DAY_HOURS_EIGHT;
-            else if (curSum > 8) {
+            var requiredPauseHours = PAUSE_DAY_HOURS_EIGHT;
+            if (current.isBefore(BASE_DATE_SIX) && now.isoWeekday() == 5) {
+                requiredPauseHours = PAUSE_DAY_HOURS_SIX;
+            }
+            else if (current.isAfter(BASE_DATE_EIGHT)) {
                 requiredPauseHours = PAUSE_DAY_HOURS_MAX
             }
+            var requiredPauseMoment = moment.duration({hour: requiredPauseHours});
 
-            var pauseHours = curPauseMs / 1000 / 60 / 60;
-
+            var pauseHours = curPauseMoment.asHours();
             var remainingPauseHours = requiredPauseHours - pauseHours;
+            var remainingPauseMoment = requiredPauseMoment.subtract(curPauseMoment);
+
+            var pauseDiff = requiredPauseMoment.valueOf() - curPauseMoment.valueOf()
             var maxPauseReached = false;
             var remPauseStr;
 
-            if (remainingPauseHours < 0) {
+            if (remainingPauseMoment.valueOf() < 0) {
                 maxPauseReached = true;
-                remainingPauseHours = Math.abs(remainingPauseHours);
-                var remPauseHours = Math.floor(pauseHours);
-                var remPauseMinutes = Math.ceil((pauseHours - remPauseHours) * 60);
-                remPauseStr = "Pause Insg.: ";
+                remPauseStr = "Pause Insg.: " + BASE_DATE.clone().add(curPauseMoment).format("HH:mm")  + "h";
             } else {
-                var remPauseHours = Math.floor(remainingPauseHours);
-                var remPauseMinutes = Math.ceil((remainingPauseHours - remPauseHours) * 60);
-                remPauseStr = "Pause Verb.: ";
+                remPauseStr = "Pause Verb.: " + BASE_DATE.clone().add(remainingPauseMoment).format("HH:mm") + "h";
             }
-
-            if (remPauseMinutes === 60) {
-                remPauseMinutes = 0;
-                remPauseHours++;
-            }
-
-            remPauseMinutes = "" + remPauseMinutes;
-            remPauseMinutes = remPauseMinutes.length === 1 ? "0" + remPauseMinutes : remPauseMinutes;
-
-            remPauseStr += remPauseHours + "h" + remPauseMinutes + "m";
 
             tdCol2.text(remPauseStr);
 
             //remaining time
             if (!maxPauseReached) {
-                if (isPositive) {
-                    remainingSum -= remainingPauseHours;
-                } else {
-                    remainingSum += remainingPauseHours;
-                }
+                current = current.subtract(remainingPauseMoment);
             }
 
-            var remainingHours = Math.floor(remainingSum);
-            var remainingMinutes = Math.ceil((remainingSum - remainingHours) * 60);
-            if (remainingMinutes === 60) {
-                remainingMinutes = 0;
-                remainingHours++;
-            }
-            remainingMinutes = "" + remainingMinutes;
-            remainingMinutes = remainingMinutes.length === 1 ? "0" + remainingMinutes : remainingMinutes;
-
-            var remainingStr = (isPositive ? "Über.: " : "Verbl.: ") + remainingHours + "h" + remainingMinutes + "m";
+            var remainingStr = (isPositive ? "Über.: " : "Verbl.: ") + remaining.format("HH:mm") + "h";
 
             tdCol1.text(remainingStr);
 
             if (!isPositive) {
                 var stayTill = new Date();
-                stayTill = new Date(stayTill.getTime() + remainingSum * 60 * 60 * 1000);
+                stayTill = new Date(stayTill.getTime() + remaining.valueOf());
 
                 if ($(".k-grid-footer:last-child > .staytill").length == 0) {
                     $(".k-grid-footer:last-child").prepend("<div class='staytill'></div>");
