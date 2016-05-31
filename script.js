@@ -148,6 +148,11 @@ $(function () {
             }
 
             var remaining = BASE_DATE_EIGHT.clone().subtract(current);
+
+            if (!maxPauseReached) {
+                remaining = remaining.add(remainingPauseMoment);
+            }
+
             if (isPositive) {
                 var remainingStr = "Über.: " + (current.clone().subtract(moment.duration({hour: 8}))).format("HH:mm") + "h";
             } else {
@@ -155,7 +160,6 @@ $(function () {
             }
 
             tdCol1.text(remainingStr);
-
 
             if (!isPositive) {
                 var nowTime = moment().year(1970).month(0).date(1);
@@ -165,7 +169,7 @@ $(function () {
                     $(".k-grid-footer:last-child").prepend("<div class='staytill'></div>");
                 }
 
-                $(".k-grid-footer:last-child > .staytill").html("<b>Bleiben bis mindestens: " + nowTime.format("HH:mm") + "</b>");
+                $(".k-grid-footer:last-child > .staytill").html("<b>Bleiben bis mindestens: " + nowTime.format("HH:mm") + "h</b>");
             } else {
                 if ($(".k-grid-footer:last-child > .staytill").length != 0) {
                     $(".k-grid-footer:last-child > .staytill").remove();
