@@ -149,9 +149,9 @@ $(function () {
 
             var remaining = BASE_DATE_EIGHT.clone().subtract(current);
 
-            if (!maxPauseReached) {
+           /* if (!maxPauseReached) {
                 remaining = remaining.add(remainingPauseMoment);
-            }
+            }*/
 
             if (isPositive) {
                 var remainingStr = "Über.: " + (current.clone().subtract(moment.duration({hour: 8}))).format("HH:mm") + "h";
