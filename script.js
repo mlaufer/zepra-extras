@@ -23,11 +23,13 @@ var PAUSE_DAY_HOURS_MAX = 0.75;
 var BASE_DATE = moment.utc("1970-01-01");
 var BASE_DATE_SIX = BASE_DATE.clone().hours(6)
 var BASE_DATE_EIGHT = BASE_DATE.clone().hours(8);
-var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE_EIGHT.clone().minutes(55);
+var NINE_HOURS_PAUSE_ALERT_DATE = BASE_DATE_EIGHT.clone().minutes(45);
 var NINE_HOURS_DATE = BASE_DATE.clone().hours(9);
 
 var NOTIFICATION_ALLOWED = false;
-var $notification;
+
+var $notification = null;
+
 if (("Notification" in window)) {
     NOTIFICATION_ALLOWED = Notification.permission === "granted";
 
@@ -185,15 +187,17 @@ $(function () {
 
             // go home alert
             if (current.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && current.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
-                var leftMins = NINE_HOURS_PAUSE_ALERT_DATE.diff(current, 'minutes');
+                var leftMins = 15 - current.diff(NINE_HOURS_PAUSE_ALERT_DATE, 'minutes');
                 var text = "Alter in " + leftMins + " Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!";
                 if (!NOTIFICATION_ALLOWED)
                     alert(text);
                 else {
-                    if ($notification) {
-                        $notification.close();
+                    if ($notification == null) {
+                        $notification = new Notification(text);
+                        $notification.onclose = function() {
+                            $notification = null;
+                        };
                     }
-                    $notification = new Notification(text);
                 }
             }
         }
