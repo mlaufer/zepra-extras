@@ -97,6 +97,7 @@ $(function () {
             }
 
             var current = BASE_DATE.clone().add(curSumDuration);
+            var complete = current.clone();
 
             var remainingSum = 8 - curSum;
             remainingSum = Math.abs(remainingSum);
@@ -147,6 +148,7 @@ $(function () {
             //remaining time
             if (!maxPauseReached) {
                 current = current.subtract(remainingPauseMoment);
+                complete = complete.subtract(curPauseMoment);
             }
 
             var remaining = BASE_DATE_EIGHT.clone().subtract(current);
@@ -186,8 +188,8 @@ $(function () {
             }
 
             // go home alert
-            if (current.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && current.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
-                var leftMins = 15 - current.diff(NINE_HOURS_PAUSE_ALERT_DATE, 'minutes');
+            if (complete.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && complete.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
+                var leftMins = 15 - complete.diff(NINE_HOURS_PAUSE_ALERT_DATE, 'minutes');
                 var text = "In " + leftMins + " Minuten brauchst du 45 Minuten Pause, geh heim!";
                 if (!NOTIFICATION_ALLOWED)
                     alert(text);
