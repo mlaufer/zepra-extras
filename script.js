@@ -188,7 +188,7 @@ $(function () {
             // go home alert
             if (current.isAfter(NINE_HOURS_PAUSE_ALERT_DATE) && current.isBefore(NINE_HOURS_DATE) && !maxPauseReached) {
                 var leftMins = 15 - current.diff(NINE_HOURS_PAUSE_ALERT_DATE, 'minutes');
-                var text = "Alter in " + leftMins + " Minuten brauchst du 45 Minuten Pause, sieh zu, dass du Land gewinnst!";
+                var text = "In " + leftMins + " Minuten brauchst du 45 Minuten Pause, geh heim!";
                 if (!NOTIFICATION_ALLOWED)
                     alert(text);
                 else {
